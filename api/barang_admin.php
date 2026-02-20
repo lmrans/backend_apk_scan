@@ -11,17 +11,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-$role = $_GET['role'] ?? null;
+$method = $_SERVER['REQUEST_METHOD'];
+$data = json_decode(file_get_contents("php://input"), true);
+
+$role = $_GET['role'] ?? $data['role'] ?? null;
+
 if ($role !== 'admin') {
     echo json_encode([
         "status" => false,
         "message" => "Akses khusus admin"
     ]);
     exit;
-}
-
-$method = $_SERVER['REQUEST_METHOD'];
-$data = json_decode(file_get_contents("php://input"), true);
+} json_decode(file_get_contents("php://input"), true);
 
 switch ($action) {
 
