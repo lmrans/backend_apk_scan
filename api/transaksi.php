@@ -2,9 +2,25 @@
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
+header("Content-Type: application/json");
 
 require_once "../config/database.php";
 
+// ================= HANDLE PREFLIGHT =================
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode([
+        "status" => false,
+        "message" => "Method tidak diizinkan"
+    ]);
+    exit;
+}
+
+// ================= AMBIL DATA =================
 $data = json_decode(file_get_contents("php://input"), true);
 
 $id_barang = isset($data['id_barang']) ? intval($data['id_barang']) : 0;
@@ -18,13 +34,8 @@ if ($id_barang <= 0 || empty($nama_pengambil) || $jumlah <= 0) {
     ]);
     exit;
 }
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
 
-
-// Ambil data barang
+// ================= CEK BARANG =================
 $stmt = $conn->prepare("SELECT stok, kode_barang FROM barang WHERE id_barang = ?");
 $stmt->bind_param("i", $id_barang);
 $stmt->execute();
@@ -49,6 +60,7 @@ if ($barang['stok'] < $jumlah) {
 
 $kode_barang = $barang['kode_barang'];
 
+// ================= TRANSAKSI =================
 $conn->begin_transaction();
 
 try {
@@ -72,12 +84,15 @@ try {
         "status" => true,
         "message" => "Transaksi berhasil disimpan"
     ]);
+
 } catch (Exception $e) {
 
     $conn->rollback();
 
     echo json_encode([
         "status" => false,
-        "message" => "Gagal simpan transaksi"
+        "message" => "Gagal simpan transaksi",
+        "error" => $e->getMessage() // untuk debugging
     ]);
 }
+?>
