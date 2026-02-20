@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-$role = $_SERVER['HTTP_ROLE'] ?? null;
+$role = $_GET['role'] ?? null;
 if ($role !== 'admin') {
     echo json_encode([
         "status" => false,
