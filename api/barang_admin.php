@@ -14,8 +14,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $method = $_SERVER['REQUEST_METHOD'];
 $data = json_decode(file_get_contents("php://input"), true);
 
-// ✅ Ambil role dari HEADER
-$role = $_SERVER['HTTP_ROLE'] ?? null;
+// Ambil role dari berbagai kemungkinan
+$role = $_SERVER['HTTP_ROLE']
+    ?? $_GET['role']
+    ?? ($data['role'] ?? null);
 
 if ($role !== 'admin') {
     echo json_encode([
@@ -24,7 +26,6 @@ if ($role !== 'admin') {
     ]);
     exit;
 }
-
 switch ($method) {
 
     // ================= GET =================
@@ -151,4 +152,3 @@ switch ($method) {
         ]);
         break;
 }
-?>
