@@ -1,6 +1,6 @@
 <?php
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, role");
 header("Content-Type: application/json");
 
@@ -14,7 +14,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $method = $_SERVER['REQUEST_METHOD'];
 $data = json_decode(file_get_contents("php://input"), true);
 
-$role = $_GET['role'] ?? $data['role'] ?? null;
+// ✅ Ambil role dari HEADER
+$role = $_SERVER['HTTP_ROLE'] ?? null;
 
 if ($role !== 'admin') {
     echo json_encode([
@@ -22,14 +23,14 @@ if ($role !== 'admin') {
         "message" => "Akses khusus admin"
     ]);
     exit;
-} json_decode(file_get_contents("php://input"), true);
+}
 
-switch ($action) {
+switch ($method) {
 
     // ================= GET =================
-    case 'get':
+    case 'GET':
 
-        $query = "SELECT id_barang, kode_barang, nama_barang, stok, satuan, created_at 
+        $query = "SELECT id_barang, kode_barang, nama_barang, stok, satuan 
                   FROM barang 
                   ORDER BY id_barang DESC";
 
@@ -46,9 +47,8 @@ switch ($action) {
         ]);
         break;
 
-
-    // ================= TAMBAH =================
-    case 'add':
+    // ================= POST (TAMBAH) =================
+    case 'POST':
 
         $kode   = trim($data['kode_barang'] ?? '');
         $nama   = trim($data['nama_barang'] ?? '');
@@ -56,7 +56,10 @@ switch ($action) {
         $satuan = trim($data['satuan'] ?? '');
 
         if ($kode === '' || $nama === '' || $satuan === '') {
-            echo json_encode(["status"=>false,"message"=>"Kode, Nama, dan Satuan wajib diisi"]);
+            echo json_encode([
+                "status" => false,
+                "message" => "Kode, Nama, dan Satuan wajib diisi"
+            ]);
             exit;
         }
 
@@ -65,43 +68,87 @@ switch ($action) {
         $stmt->bind_param("ssis", $kode, $nama, $stok, $satuan);
 
         if ($stmt->execute()) {
-            echo json_encode(["status"=>true,"message"=>"Barang berhasil ditambahkan"]);
+            echo json_encode([
+                "status" => true,
+                "message" => "Barang berhasil ditambahkan"
+            ]);
         } else {
-            echo json_encode(["status"=>false,"message"=>"Gagal menambahkan barang"]);
+            echo json_encode([
+                "status" => false,
+                "message" => "Gagal menambahkan barang"
+            ]);
         }
 
         break;
 
-
-    // ================= UPDATE STOK =================
-    case 'update':
+    // ================= PUT (UPDATE STOK) =================
+    case 'PUT':
 
         $kode = trim($data['kode_barang'] ?? '');
-        $tambah = (int)($data['stok_tambah'] ?? 0);
+        $tambah = (int)($data['stok'] ?? 0);
 
-        $stmt = $conn->prepare("UPDATE barang SET stok = stok + ? WHERE TRIM(kode_barang)=TRIM(?)");
+        if ($kode === '' || $tambah <= 0) {
+            echo json_encode([
+                "status" => false,
+                "message" => "Data tidak valid"
+            ]);
+            exit;
+        }
+
+        $stmt = $conn->prepare("UPDATE barang SET stok = stok + ? WHERE kode_barang = ?");
         $stmt->bind_param("is", $tambah, $kode);
         $stmt->execute();
 
-        echo json_encode(["status"=>true,"message"=>"Stok berhasil diperbarui"]);
+        if ($stmt->affected_rows > 0) {
+            echo json_encode([
+                "status" => true,
+                "message" => "Stok berhasil diperbarui"
+            ]);
+        } else {
+            echo json_encode([
+                "status" => false,
+                "message" => "Barang tidak ditemukan"
+            ]);
+        }
+
         break;
 
-
     // ================= DELETE =================
-    case 'delete':
+    case 'DELETE':
 
-        $id = (int)($data['id'] ?? 0);
+        $id = (int)($data['id_barang'] ?? 0);
+
+        if ($id <= 0) {
+            echo json_encode([
+                "status" => false,
+                "message" => "ID tidak valid"
+            ]);
+            exit;
+        }
 
         $stmt = $conn->prepare("DELETE FROM barang WHERE id_barang = ?");
         $stmt->bind_param("i", $id);
         $stmt->execute();
 
-        echo json_encode(["status"=>true,"message"=>"Barang berhasil dihapus"]);
+        if ($stmt->affected_rows > 0) {
+            echo json_encode([
+                "status" => true,
+                "message" => "Barang berhasil dihapus"
+            ]);
+        } else {
+            echo json_encode([
+                "status" => false,
+                "message" => "Barang tidak ditemukan"
+            ]);
+        }
+
         break;
 
-
     default:
-        echo json_encode(["status"=>false,"message"=>"Action tidak dikenali"]);
+        echo json_encode([
+            "status" => false,
+            "message" => "Method tidak dikenali"
+        ]);
         break;
 }
 ?>
