@@ -16,6 +16,7 @@ $data = json_decode(file_get_contents("php://input"), true);
 
 // Ambil role dari berbagai kemungkinan
 $role = $_SERVER['HTTP_ROLE']
+    ?? $_POST['role']
     ?? $_GET['role']
     ?? ($data['role'] ?? null);
 
