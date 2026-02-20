@@ -23,10 +23,10 @@ if ($role !== 'admin') {
 $method = $_SERVER['REQUEST_METHOD'];
 $data = json_decode(file_get_contents("php://input"), true);
 
-switch ($method) {
+switch ($action) {
 
     // ================= GET =================
-    case 'GET':
+    case 'get':
 
         $query = "SELECT id_barang, kode_barang, nama_barang, stok, satuan, created_at 
                   FROM barang 
@@ -46,8 +46,8 @@ switch ($method) {
         break;
 
 
-    // ================= POST =================
-    case 'POST':
+    // ================= TAMBAH =================
+    case 'add':
 
         $kode   = trim($data['kode_barang'] ?? '');
         $nama   = trim($data['nama_barang'] ?? '');
@@ -55,32 +55,7 @@ switch ($method) {
         $satuan = trim($data['satuan'] ?? '');
 
         if ($kode === '' || $nama === '' || $satuan === '') {
-            echo json_encode([
-                "status" => false,
-                "message" => "Kode, Nama, dan Satuan wajib diisi"
-            ]);
-            exit;
-        }
-
-        if ($stok < 0) {
-            echo json_encode([
-                "status" => false,
-                "message" => "Stok tidak boleh negatif"
-            ]);
-            exit;
-        }
-
-        // CEK DUPLIKAT
-        $cek = $conn->prepare("SELECT id_barang FROM barang WHERE TRIM(kode_barang)=TRIM(?)");
-        $cek->bind_param("s", $kode);
-        $cek->execute();
-        $cek->store_result();
-
-        if ($cek->num_rows > 0) {
-            echo json_encode([
-                "status" => false,
-                "message" => "Kode barang sudah digunakan"
-            ]);
+            echo json_encode(["status"=>false,"message"=>"Kode, Nama, dan Satuan wajib diisi"]);
             exit;
         }
 
@@ -89,92 +64,43 @@ switch ($method) {
         $stmt->bind_param("ssis", $kode, $nama, $stok, $satuan);
 
         if ($stmt->execute()) {
-            echo json_encode([
-                "status" => true,
-                "message" => "Barang berhasil ditambahkan"
-            ]);
+            echo json_encode(["status"=>true,"message"=>"Barang berhasil ditambahkan"]);
         } else {
-            echo json_encode([
-                "status" => false,
-                "message" => "Gagal menambahkan barang"
-            ]);
+            echo json_encode(["status"=>false,"message"=>"Gagal menambahkan barang"]);
         }
 
         break;
 
 
-    // ================= PATCH (Tambah Stok) =================
-    case 'PATCH':
+    // ================= UPDATE STOK =================
+    case 'update':
 
         $kode = trim($data['kode_barang'] ?? '');
         $tambah = (int)($data['stok_tambah'] ?? 0);
 
-        if ($kode === '' || $tambah <= 0) {
-            echo json_encode([
-                "status" => false,
-                "message" => "Data tidak valid"
-            ]);
-            exit;
-        }
-
-        $stmt = $conn->prepare("UPDATE barang 
-                                SET stok = stok + ? 
-                                WHERE TRIM(kode_barang)=TRIM(?)");
-
+        $stmt = $conn->prepare("UPDATE barang SET stok = stok + ? WHERE TRIM(kode_barang)=TRIM(?)");
         $stmt->bind_param("is", $tambah, $kode);
         $stmt->execute();
 
-        if ($stmt->affected_rows > 0) {
-            echo json_encode([
-                "status" => true,
-                "message" => "Stok berhasil ditambahkan"
-            ]);
-        } else {
-            echo json_encode([
-                "status" => false,
-                "message" => "Kode barang tidak ditemukan"
-            ]);
-        }
-
+        echo json_encode(["status"=>true,"message"=>"Stok berhasil diperbarui"]);
         break;
 
 
     // ================= DELETE =================
-    case 'DELETE':
+    case 'delete':
 
         $id = (int)($data['id'] ?? 0);
 
-        if ($id <= 0) {
-            echo json_encode([
-                "status" => false,
-                "message" => "ID wajib diisi"
-            ]);
-            exit;
-        }
-
         $stmt = $conn->prepare("DELETE FROM barang WHERE id_barang = ?");
         $stmt->bind_param("i", $id);
+        $stmt->execute();
 
-        if ($stmt->execute()) {
-            echo json_encode([
-                "status" => true,
-                "message" => "Barang berhasil dihapus"
-            ]);
-        } else {
-            echo json_encode([
-                "status" => false,
-                "message" => "Gagal menghapus barang"
-            ]);
-        }
-
+        echo json_encode(["status"=>true,"message"=>"Barang berhasil dihapus"]);
         break;
 
 
     default:
-        echo json_encode([
-            "status" => false,
-            "message" => "Method tidak dikenali"
-        ]);
+        echo json_encode(["status"=>false,"message"=>"Action tidak dikenali"]);
         break;
 }
 ?>
