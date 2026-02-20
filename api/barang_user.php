@@ -4,7 +4,7 @@ header("Content-Type: application/json");
 
 require_once "../config/database.php";
 
-$query = "SELECT id_barang, kode_barang, nama_barang, stok, harga FROM barang";
+$query = "SELECT id_barang, kode_barang, nama_barang, stok, FROM barang";
 $result = $conn->query($query);
 
 $barang = [];
