@@ -14,6 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 $role = $_SERVER['HTTP_ROLE'] ?? null;
 if ($role !== 'admin') {
+    
     echo json_encode(["status" => false, "message" => "Akses khusus admin"]);
     exit;
 }
