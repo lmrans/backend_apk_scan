@@ -1,24 +1,29 @@
 <?php
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, role");
+header("Access-Control-Allow-Methods: GET, POST");
 header("Content-Type: application/json");
 
 require_once "../config/database.php";
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+/*
+|--------------------------------------------------------------------------
+| AMBIL DATA REQUEST (STABIL UNTUK HOSTING)
+|--------------------------------------------------------------------------
+*/
 
-$method = $_SERVER['REQUEST_METHOD'];
-$data = json_decode(file_get_contents("php://input"), true);
+$rawData = file_get_contents("php://input");
+$jsonData = json_decode($rawData, true);
 
-// Ambil role dari berbagai kemungkinan
-$role = $_SERVER['HTTP_ROLE']
-    ?? $_POST['role']
-    ?? $_GET['role']
-    ?? ($data['role'] ?? null);
+// Gabungkan semua kemungkinan input
+$data = array_merge($_GET, $_POST, $jsonData ?? []);
+
+/*
+|--------------------------------------------------------------------------
+| VALIDASI ROLE (TIDAK BERGANTUNG HEADER)
+|--------------------------------------------------------------------------
+*/
+
+$role = $data['role'] ?? null;
 
 if ($role !== 'admin') {
     echo json_encode([
@@ -27,10 +32,23 @@ if ($role !== 'admin') {
     ]);
     exit;
 }
-switch ($method) {
 
-    // ================= GET =================
-    case 'GET':
+/*
+|--------------------------------------------------------------------------
+| ACTION HANDLER
+|--------------------------------------------------------------------------
+*/
+
+$action = $data['action'] ?? 'get';
+
+switch ($action) {
+
+    /*
+    |--------------------------------------------------------------------------
+    | GET DATA
+    |--------------------------------------------------------------------------
+    */
+    case 'get':
 
         $query = "SELECT id_barang, kode_barang, nama_barang, stok, satuan 
                   FROM barang 
@@ -49,8 +67,13 @@ switch ($method) {
         ]);
         break;
 
-    // ================= POST (TAMBAH) =================
-    case 'POST':
+
+    /*
+    |--------------------------------------------------------------------------
+    | TAMBAH BARANG
+    |--------------------------------------------------------------------------
+    */
+    case 'add':
 
         $kode   = trim($data['kode_barang'] ?? '');
         $nama   = trim($data['nama_barang'] ?? '');
@@ -83,8 +106,13 @@ switch ($method) {
 
         break;
 
-    // ================= PUT (UPDATE STOK) =================
-    case 'PUT':
+
+    /*
+    |--------------------------------------------------------------------------
+    | UPDATE STOK (TAMBAH STOK)
+    |--------------------------------------------------------------------------
+    */
+    case 'update':
 
         $kode = trim($data['kode_barang'] ?? '');
         $tambah = (int)($data['stok'] ?? 0);
@@ -115,8 +143,13 @@ switch ($method) {
 
         break;
 
-    // ================= DELETE =================
-    case 'DELETE':
+
+    /*
+    |--------------------------------------------------------------------------
+    | DELETE BARANG
+    |--------------------------------------------------------------------------
+    */
+    case 'delete':
 
         $id = (int)($data['id_barang'] ?? 0);
 
@@ -146,10 +179,12 @@ switch ($method) {
 
         break;
 
+
     default:
         echo json_encode([
             "status" => false,
-            "message" => "Method tidak dikenali"
+            "message" => "Action tidak dikenali"
         ]);
         break;
 }
+?>
