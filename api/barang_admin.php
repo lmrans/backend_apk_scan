@@ -1,62 +1,42 @@
 <?php
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Role");
 header("Content-Type: application/json");
 
 require_once "../config/database.php";
 
-/*
-|--------------------------------------------------------------------------
-| AMBIL DATA REQUEST (STABIL UNTUK HOSTING)
-|--------------------------------------------------------------------------
-*/
+/* ================= HANDLE PREFLIGHT ================= */
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
-$rawData = file_get_contents("php://input");
-$jsonData = json_decode($rawData, true);
-
-// Gabungkan semua kemungkinan input
-$data = array_merge($_GET, $_POST, $jsonData ?? []);
-
-/*
-|--------------------------------------------------------------------------
-| VALIDASI ROLE (TIDAK BERGANTUNG HEADER)
-|--------------------------------------------------------------------------
-*/
-
-$role = $data['role'] ?? null;
+/* ================= AMBIL ROLE DARI HEADER ================= */
+$role = $_SERVER['HTTP_ROLE'] ?? null;
 
 if ($role !== 'admin') {
     echo json_encode([
         "status" => false,
         "message" => "Akses khusus admin"
     ]);
-    exit;
+    exit();
 }
 
-/*
-|--------------------------------------------------------------------------
-| ACTION HANDLER
-|--------------------------------------------------------------------------
-*/
+/* ================= AMBIL METHOD & DATA ================= */
+$method = $_SERVER['REQUEST_METHOD'];
+$rawData = file_get_contents("php://input");
+$data = json_decode($rawData, true);
 
-$action = $data['action'] ?? 'get';
+/* ================= SWITCH METHOD ================= */
+switch ($method) {
 
-switch ($action) {
+    /* ================= GET ================= */
+    case 'GET':
 
-    /*
-    |--------------------------------------------------------------------------
-    | GET DATA
-    |--------------------------------------------------------------------------
-    */
-    case 'get':
+        $result = $conn->query("SELECT id_barang, kode_barang, nama_barang, stok, satuan FROM barang ORDER BY id_barang DESC");
 
-        $query = "SELECT id_barang, kode_barang, nama_barang, stok, satuan 
-                  FROM barang 
-                  ORDER BY id_barang DESC";
-
-        $result = $conn->query($query);
         $barang = [];
-
         while ($row = $result->fetch_assoc()) {
             $barang[] = $row;
         }
@@ -68,28 +48,23 @@ switch ($action) {
         break;
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | TAMBAH BARANG
-    |--------------------------------------------------------------------------
-    */
-    case 'add':
+    /* ================= POST (TAMBAH) ================= */
+    case 'POST':
 
         $kode   = trim($data['kode_barang'] ?? '');
         $nama   = trim($data['nama_barang'] ?? '');
         $stok   = (int)($data['stok'] ?? 0);
         $satuan = trim($data['satuan'] ?? '');
 
-        if ($kode === '' || $nama === '' || $satuan === '') {
+        if ($kode == '' || $nama == '' || $satuan == '') {
             echo json_encode([
                 "status" => false,
-                "message" => "Kode, Nama, dan Satuan wajib diisi"
+                "message" => "Data tidak lengkap"
             ]);
-            exit;
+            exit();
         }
 
-        $stmt = $conn->prepare("INSERT INTO barang (kode_barang, nama_barang, stok, satuan) 
-                                VALUES (?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO barang (kode_barang, nama_barang, stok, satuan) VALUES (?, ?, ?, ?)");
         $stmt->bind_param("ssis", $kode, $nama, $stok, $satuan);
 
         if ($stmt->execute()) {
@@ -107,22 +82,18 @@ switch ($action) {
         break;
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | UPDATE STOK (TAMBAH STOK)
-    |--------------------------------------------------------------------------
-    */
-    case 'update':
+    /* ================= PUT (UPDATE STOK) ================= */
+    case 'PUT':
 
         $kode = trim($data['kode_barang'] ?? '');
         $tambah = (int)($data['stok'] ?? 0);
 
-        if ($kode === '' || $tambah <= 0) {
+        if ($kode == '' || $tambah <= 0) {
             echo json_encode([
                 "status" => false,
                 "message" => "Data tidak valid"
             ]);
-            exit;
+            exit();
         }
 
         $stmt = $conn->prepare("UPDATE barang SET stok = stok + ? WHERE kode_barang = ?");
@@ -144,12 +115,8 @@ switch ($action) {
         break;
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | DELETE BARANG
-    |--------------------------------------------------------------------------
-    */
-    case 'delete':
+    /* ================= DELETE ================= */
+    case 'DELETE':
 
         $id = (int)($data['id_barang'] ?? 0);
 
@@ -158,7 +125,7 @@ switch ($action) {
                 "status" => false,
                 "message" => "ID tidak valid"
             ]);
-            exit;
+            exit();
         }
 
         $stmt = $conn->prepare("DELETE FROM barang WHERE id_barang = ?");
@@ -183,7 +150,7 @@ switch ($action) {
     default:
         echo json_encode([
             "status" => false,
-            "message" => "Action tidak dikenali"
+            "message" => "Method tidak dikenali"
         ]);
         break;
 }
