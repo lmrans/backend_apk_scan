@@ -54,7 +54,7 @@ switch ($method) {
         $kode   = trim($data['kode_barang'] ?? '');
         $nama   = trim($data['nama_barang'] ?? '');
         $stok   = (int)($data['stok'] ?? 0);
-        $harga = $input['harga'] ?? 0;
+        $harga  = (int)($data['harga'] ?? 0);
         $satuan = trim($data['satuan'] ?? '');
 
         if ($kode == '' || $nama == '' || $satuan == '') {
@@ -66,7 +66,7 @@ switch ($method) {
         }
 
         $stmt = $conn->prepare("INSERT INTO barang (kode_barang, nama_barang, stok, satuan, harga) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssis", $kode, $nama, $stok, $satuan, $harga);
+        $stmt->bind_param("ssisi", $kode, $nama, $stok, $satuan, $harga);
 
         if ($stmt->execute()) {
             echo json_encode([
@@ -76,7 +76,7 @@ switch ($method) {
         } else {
             echo json_encode([
                 "status" => false,
-                "message" => "Gagal menambahkan barang"
+                "message" => "Error: " . $stmt->error
             ]);
         }
 
